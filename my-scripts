@@ -1,0 +1,76 @@
+-- KillAuraSafe.lua (LocalScript)
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+if not player then return end
+
+local PLACE_ALLOWED = 79546208627805
+local RADIUS = 10
+local DAMAGE = 100
+local ATTACK_INTERVAL = 0.5 -- сек между волнами урона
+local TOGGLE_KEY = Enum.KeyCode.K
+
+local enabled = false
+local lastAttack = 0
+
+local function isPlaceAllowed()
+if PLACE_ALLOWED == 0 then return true end
+return game.PlaceId == PLACE_ALLOWED
+end
+
+local function getRootFromHumanoid(hum)
+if not hum or not hum.Parent then return nil end
+local model = hum.Parent
+local hrp = model:FindFirstChild("HumanoidRootPart") or model.PrimaryPart
+return model, hrp
+end
+
+local function isHumanoidNPC(hum)
+if not hum or not hum.Parent then return false end
+local model = hum.Parent
+local isNPC = model:FindFirstChild("IsNPC")
+if isNPC and isNPC:IsA("BoolValue") then
+return isNPC.Value == true
+end
+-- если явного тега нет — НЕ трогаем (безопаснее)
+return false
+end
+
+local function attackNearbyMobs()
+local char = player.Character
+if not char then return end
+local hrp = char:FindFirstChild("HumanoidRootPart") or char.PrimaryPart
+if not hrp then return end
+
+local now = tick() if now - lastAttack < ATTACK_INTERVAL then return end lastAttack = now for _, obj in ipairs(workspace:GetDescendants()) do if obj:IsA("Humanoid") and obj.Health > 0 then -- НЕ трогаем свой собственный Humanoid if obj.Parent ~= char then if isHumanoidNPC(obj) then local model, mobRoot = getRootFromHumanoid(obj) if mobRoot then local dist = (mobRoot.Position - hrp.Position).Magnitude if dist <= RADIUS then -- Наносим урон безопасно pcall(function() obj:TakeDamage(DAMAGE) end) -- Лог в Output для отладки (можно убрать) --print("[KillAura] Damaged NPC:", obj.Parent.Name, "HP left:", obj.Health) end end end end end end 
+
+end
+
+-- Переключатель через клавишу
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+if gameProcessed then return end
+if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == TOGGLE_KEY then
+enabled = not enabled
+-- уведомление (через SetCore может не сработать в некоторых окружениях)
+pcall(function()
+game:GetService("StarterGui"):SetCore("SendNotification", {
+Title = "KillAura";
+Text = enabled and "Enabled" or "Disabled";
+Duration = 2;
+})
+end)
+end
+end)
+
+-- Основной loop (безопаснее чем while true)
+RunService.Heartbeat:Connect(function(dt)
+if not isPlaceAllowed() then return end
+if enabled then
+pcall(attackNearbyMobs)
+end
+end)
+
+print("[KillAuraSafe] Loaded. Toggle with", tostring(TOGGLE_KEY))
+
