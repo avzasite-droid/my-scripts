@@ -1,0 +1,261 @@
+-- Universal FE Fly Script V5 with GUI Toggle Button + Anti-Kick & Bypass (2025 Ultimate)
+-- GUI: Draggable, Mobile-friendly, Toggle button on screen, Speed slider
+-- CoreGui parent for anti-detection, hidden as "Notification"
+
+-- 1. Universal Anti-Cheat Bypass
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Who-Is-E/Anti-Cheat-Bypass/main/Bypass.lua"))()
+
+-- 2. Anti-Kick & Velocity Spoof
+local mt = getrawmetatable(game)
+local oldnc = mt.__namecall
+setreadonly(mt, false)
+mt.__namecall = newcclosure(function(self, ...)
+    local method = getnamecallmethod()
+    if method == "Kick" and self == game.Players.LocalPlayer then
+        print("Anti-Kick: Blocked!")
+        return
+    end
+    return oldnc(self, ...)
+end)
+setreadonly(mt, true)
+
+local PLAYER = game.Players.LocalPlayer
+hookmetamethod(game, "__index", function(self, key)
+    if self == PLAYER.Character and PLAYER.Character:FindFirstChild("HumanoidRootPart") and (key == "Velocity" or key == "AssemblyLinearVelocity") then
+        return Vector3.new(0, 16, 0)
+    end
+end)
+
+-- 3. GUI Creation (Draggable, Toggle Fly Button)
+local SC = game:GetService("StarterGui"):GetCoreGuiType == Enum.CoreGuiType.All
+local SG = Instance.new("ScreenGui")
+SG.Name = "Notification" -- Anti-detect name
+SG.ResetOnSpawn = false
+SG.Parent = game.CoreGui
+
+local MF = Instance.new("Frame")
+MF.Size = UDim2.new(0, 250, 0, 320)
+MF.Position = UDim2.new(0, 20, 0.5, -160)
+MF.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+MF.BorderSizePixel = 0
+MF.Active = true
+MF.Draggable = true
+MF.Parent = SG
+
+local UC = Instance.new("UICorner")
+UC.CornerRadius = UDim.new(0, 12)
+UC.Parent = MF
+
+local US = Instance.new("UIStroke")
+US.Color = Color3.fromRGB(60, 60, 80)
+US.Thickness = 1
+US.Parent = MF
+
+-- Title
+local TL = Instance.new("TextLabel")
+TL.Size = UDim2.new(1, 0, 0, 50)
+TL.BackgroundTransparency = 1
+TL.Text = "✈️ FLY GUI V5"
+TL.TextColor3 = Color3.fromRGB(255, 255, 255)
+TL.TextSize = 18
+TL.Font = Enum.Font.GothamBold
+TL.Parent = MF
+
+-- Toggle Button
+local TB = Instance.new("TextButton")
+TB.Size = UDim2.new(0.9, 0, 0, 50)
+TB.Position = UDim2.new(0.05, 0, 0, 65)
+TB.BackgroundColor3 = Color3.fromRGB(40, 100, 40)
+TB.Text = "🚀 ENABLE FLY"
+TB.TextColor3 = Color3.fromRGB(255, 255, 255)
+TB.TextSize = 16
+TB.Font = Enum.Font.GothamBold
+TB.Parent = MF
+
+local TBUC = Instance.new("UICorner")
+TBUC.CornerRadius = UDim.new(0, 8)
+TBUC.Parent = TB
+
+local TBUS = Instance.new("UIStroke")
+TBUS.Color = Color3.fromRGB(70, 170, 70)
+TBUS.Thickness = 1
+TBUS.Parent = TB
+
+-- Speed Slider Frame
+local SF = Instance.new("Frame")
+SF.Size = UDim2.new(0.9, 0, 0, 60)
+SF.Position = UDim2.new(0.05, 0, 0, 130)
+SF.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+SF.Parent = MF
+
+local SFUC = Instance.new("UICorner")
+SFUC.CornerRadius = UDim.new(0, 8)
+SFUC.Parent = SF
+
+local SL = Instance.new("TextLabel")
+SL.Size = UDim2.new(1, 0, 0.5, 0)
+SL.BackgroundTransparency = 1
+SL.Text = "Speed: 5"
+SL.TextColor3 = Color3.fromRGB(200, 200, 200)
+SL.TextSize = 14
+SL.Font = Enum.Font.Gotham
+SL.Parent = SF
+
+local Slider = Instance.new("TextButton")
+Slider.Size = UDim2.new(1, 0, 0.5, 0)
+Slider.Position = UDim2.new(0, 0, 0.5, 0)
+Slider.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
+Slider.Text = ""
+Slider.Parent = SF
+
+local SUC = Instance.new("UICorner")
+SUC.CornerRadius = UDim.new(0, 8)
+SUC.Parent = Slider
+
+local SBar = Instance.new("Frame")
+SBar.Size = UDim2.new(0.3, 0, 1, 0)
+SBar.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+SBar.BorderSizePixel = 0
+SBar.Parent = Slider
+
+local SBUC = Instance.new("UICorner")
+SBUC.CornerRadius = UDim.new(0, 8)
+SBUC.Parent = SBar
+
+-- 4. Fly Vars & Logic
+local MOUSE = PLAYER:GetMouse()
+local CAMERA = workspace.CurrentCamera
+local FLYING = false
+local SPEED = 5
+local KEYS = {W = false, A = false, S = false, D = false, Space = false, Shift = false}
+local CONNECTIONS = {}
+
+local function CreateFly()
+    local CHAR = PLAYER.Character or PLAYER.CharacterAdded:Wait()
+    local HRP = CHAR:WaitForChild("HumanoidRootPart")
+    local HUM = CHAR:WaitForChild("Humanoid")
+    
+    HUM.PlatformStand = true
+    
+    local FLY_FOLDER = Instance.new("Folder")
+    FLY_FOLDER.Name = "Animate" -- Masquerade
+    FLY_FOLDER.Parent = HRP
+    
+    local ATT0 = Instance.new("Attachment", HRP)
+    local ATT1 = Instance.new("Attachment", HRP)
+    
+    local AP = Instance.new("AlignPosition")
+    AP.MaxForce = math.huge
+    AP.MaxVelocity = math.huge
+    AP.Responsiveness = 200
+    AP.Attachment0 = ATT0
+    AP.Attachment1 = ATT1
+    AP.Parent = FLY_FOLDER
+    
+    local AO = Instance.new("AlignOrientation")
+    AO.MaxTorque = math.huge
+    AO.Responsiveness = 200
+    AO.Attachment0 = ATT0
+    AO.Attachment1 = ATT1
+    AO.Parent = FLY_FOLDER
+    
+    local BG = Instance.new("BodyGyro")
+    BG.MaxTorque = Vector3.new(0, math.huge, 0)
+    BG.P = 20000
+    BG.D = 500
+    BG.Parent = HRP
+    
+    local LOOP
+    LOOP = game:GetService("RunService").Heartbeat:Connect(function()
+        if not FLYING then LOOP:Disconnect() return end
+        
+        HUM.PlatformStand = true
+        local MOVE_VEC = Vector3.new(
+            (KEYS.A and -1 or 0) + (KEYS.D and 1 or 0),
+            (KEYS.Space and 1 or 0) + (KEYS.Shift and -1 or 0),
+            (KEYS.W and -1 or 0) + (KEYS.S and 1 or 0)
+        )
+        
+        if MOVE_VEC.Magnitude > 0 then
+            ATT1.CFrame = CAMERA.CFrame:ToObjectSpace(CFrame.new(MOVE_VEC.Unit * SPEED * 10))
+        else
+            ATT1.CFrame = ATT0.CFrame
+        end
+        BG.CFrame = CAMERA.CFrame
+    end)
+    
+    table.insert(CONNECTIONS, LOOP)
+end
+
+local function ToggleFly()
+    FLYING = not FLYING
+    TB.Text = FLYING and "🛑 DISABLE FLY" or "🚀 ENABLE FLY"
+    TB.BackgroundColor3 = FLYING and Color3.fromRGB(120, 40, 40) or Color3.fromRGB(40, 100, 40)
+    TBUS.Color = FLYING and Color3.fromRGB(200, 60, 60) or Color3.fromRGB(70, 170, 70)
+    
+    if FLYING then
+        spawn(CreateFly)
+    else
+        if PLAYER.Character then
+            local HRP = PLAYER.Character:FindFirstChild("HumanoidRootPart")
+            if HRP then
+                local FOLDER = HRP:FindFirstChild("Animate")
+                if FOLDER then FOLDER:Destroy() end
+                local BGY = HRP:FindFirstChild("BodyGyro")
+                if BGY then BGY:Destroy() end
+            end
+            local HUM = PLAYER.Character:FindFirstChild("Humanoid")
+            if HUM then HUM.PlatformStand = false end
+        end
+        for _, conn in CONNECTIONS do
+            if conn then pcall(conn.Disconnect, conn) end
+        end
+        CONNECTIONS = {}
+    end
+end
+
+-- 5. Events
+TB.MouseButton1Click:Connect(ToggleFly)
+
+-- Speed Slider Logic
+local dragging = false
+Slider.MouseButton1Down:Connect(function()
+    dragging = true
+end)
+game:GetService("UserInputService").InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+game:GetService("RunService").RenderStepped:Connect(function()
+    if dragging then
+        local Mouse = game:GetService("UserInputService"):GetMouseLocation()
+        local RelPos = math.clamp((Mouse.X - Slider.AbsolutePosition.X) / Slider.AbsoluteSize.X, 0, 1)
+        SBar.Size = UDim2.new(RelPos, 0, 1, 0)
+        SPEED = 1 + RelPos * 50
+        SL.Text = "Speed: " .. math.floor(SPEED * 10) / 10
+    end
+end)
+
+-- Keybinds (Still works + GUI)
+MOUSE.KeyDown:Connect(function(KEY)
+    local k = KEY:lower()
+    if KEYS[k:upper()] ~= nil then KEYS[k:upper()] = true end
+end)
+MOUSE.KeyUp:Connect(function(KEY)
+    local k = KEY:lower()
+    if KEYS[k:upper()] ~= nil then KEYS[k:upper()] = false end
+end)
+
+-- Respawn Handler
+PLAYER.CharacterAdded:Connect(function()
+    wait(0.5)
+    if FLYING then
+        ToggleFly()
+        wait(0.1)
+        ToggleFly()
+    end
+end)
+
+print("🚀 Fly GUI V5 Loaded! Drag GUI, Click Toggle, Slide Speed. WASD/Space/Shift.")
+print("Mobile: Touch-friendly. Anti-Kick/Anti-Detect ACTIVE.")
